@@ -4,10 +4,20 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
+const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
 
 const app = express();
 app.use(bodyParser.json());
 app.use(cors());
+
+// Create an SNS client
+const snsClient = new SNSClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Replace with your AWS Access Key ID
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Replace with your AWS Secret Access Key
+  },
+});
 
 // Nodemailer transport configuration for email
 const transporter = nodemailer.createTransport({
@@ -65,6 +75,30 @@ app.post('/send-sms', async (req, res) => {
   } catch (error) {
     console.error('Error sending SMS:', error);
     res.status(500).json({ success: false, message: 'Failed to send SMS', error });
+  }
+});
+
+// API Endpoint to send SMS using AWS SNS
+app.post('/send-sms-sns', async (req, res) => {
+  const { to, message } = req.body;
+
+  if (!to || !message) {
+      return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+      const params = {
+          Message: message, // The message to send
+          PhoneNumber: to,  // The recipient's phone number, in E.164 format (e.g., +1234567890)
+      };
+
+      const command = new PublishCommand(params);
+      const result = await snsClient.send(command);
+
+      res.status(200).json({ success: true, message: 'SMS sent successfully!', result });
+  } catch (error) {
+      console.error('Error sending SMS via AWS SNS:', error);
+      res.status(500).json({ success: false, message: 'Failed to send SMS', error });
   }
 });
 
