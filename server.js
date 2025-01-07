@@ -38,7 +38,7 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 app.post('/send-email', async (req, res) => {
   const {  to_email, contact_person, alarm_time, elapsed_time, support_contact } = req.body;
 
-  if (!to_name || !to_email  || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
+  if ( !to_email  || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
