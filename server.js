@@ -43,7 +43,7 @@ app.post('/send-email', async (req, res) => {
   }
 
   const mailOptions = {
-    from: process.env.MAIL_USERNAME, // Sender address
+    from: process.env.MAIL_FROM_ADDRESS, // Sender address
     to: to_email, // Recipient email
     subject: `【重要】操作未確認によるアラーム通知`, // Subject line
     html: getEmailTemplate(contact_person, alarm_time, elapsed_time, support_contact), // Plain text body
