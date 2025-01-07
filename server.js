@@ -5,6 +5,7 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+const  getEmailTemplate  = require('./utils/getEmailTemplate');
 
 const app = express();
 app.use(bodyParser.json());
@@ -14,8 +15,8 @@ app.use(cors());
 const snsClient = new SNSClient({
   region: process.env.AWS_REGION || 'ap-southeast-2',
   credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Replace with your AWS Access Key ID
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Replace with your AWS Secret Access Key
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Replace with your AWS Access Key ID
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Replace with your AWS Secret Access Key
   },
 });
 
@@ -35,17 +36,17 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 
 // API Endpoint to send email
 app.post('/send-email', async (req, res) => {
-  const { to_name, to_email, message } = req.body;
+  const { to_name, to_email, message, contact_person, alarm_time, elapsed_time, support_contact } = req.body;
 
-  if (!to_name || !to_email || !message) {
+  if (!to_name || !to_email || !message || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   const mailOptions = {
     from: process.env.MAIL_USERNAME, // Sender address
     to: to_email, // Recipient email
-    subject: `Message from ${to_name}`, // Subject line
-    text: message, // Plain text body
+    subject: `【重要】操作未確認によるアラーム通知`, // Subject line
+    html: getEmailTemplate(contact_person, alarm_time, elapsed_time, support_contact), // Plain text body
   };
 
   try {
@@ -83,22 +84,22 @@ app.post('/send-sms-sns', async (req, res) => {
   const { to, message } = req.body;
 
   if (!to || !message) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-      const params = {
-          Message: message, // The message to send
-          PhoneNumber: to,  // The recipient's phone number, in E.164 format (e.g., +1234567890)
-      };
+    const params = {
+      Message: message, // The message to send
+      PhoneNumber: to,  // The recipient's phone number, in E.164 format (e.g., +1234567890)
+    };
 
-      const command = new PublishCommand(params);
-      const result = await snsClient.send(command);
+    const command = new PublishCommand(params);
+    const result = await snsClient.send(command);
 
-      res.status(200).json({ success: true, message: 'SMS sent successfully!', result });
+    res.status(200).json({ success: true, message: 'SMS sent successfully!', result });
   } catch (error) {
-      console.error('Error sending SMS via AWS SNS:', error);
-      res.status(500).json({ success: false, message: 'Failed to send SMS', error });
+    console.error('Error sending SMS via AWS SNS:', error);
+    res.status(500).json({ success: false, message: 'Failed to send SMS', error });
   }
 });
 
