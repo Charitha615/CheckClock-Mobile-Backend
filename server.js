@@ -5,7 +5,9 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
-const  getEmailTemplate  = require('./utils/getEmailTemplate');
+const getEmailTemplate = require('./utils/getEmailTemplate');
+const authenticateToken = require('./auth/authenticateToken');
+const generateToken = require('./auth/generateToken');
 
 const app = express();
 app.use(bodyParser.json());
@@ -34,11 +36,30 @@ const transporter = nodemailer.createTransport({
 // Twilio client configuration for SMS
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-// API Endpoint to send email
-app.post('/send-email', async (req, res) => {
-  const {  to_email, contact_person, alarm_time, elapsed_time, support_contact } = req.body;
 
-  if ( !to_email  || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
+app.post('/auth', (req, res) => {
+  const { username, password } = req.body;
+  const user = { username, password };
+
+  try {
+    const token = generateToken(user);
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized Access" });
+    }
+    res.json({ token });
+  } catch (error) {
+    console.log("🚀 ~ app.post ~ error:", error)
+    res.status(500).json({ message: error });
+  }
+});
+
+
+
+// API Endpoint to send email
+app.post('/send-email', authenticateToken, async (req, res) => {
+  const { to_email, contact_person, alarm_time, elapsed_time, support_contact } = req.body;
+
+  if (!to_email || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -59,7 +80,7 @@ app.post('/send-email', async (req, res) => {
 });
 
 // API Endpoint to send SMS
-app.post('/send-sms', async (req, res) => {
+app.post('/send-sms', authenticateToken, async (req, res) => {
   const { to, message } = req.body;
 
   if (!to || !message) {
@@ -80,7 +101,7 @@ app.post('/send-sms', async (req, res) => {
 });
 
 // API Endpoint to send SMS using AWS SNS
-app.post('/send-sms-sns', async (req, res) => {
+app.post('/send-sms-sns', authenticateToken, async (req, res) => {
   const { to, message } = req.body;
 
   if (!to || !message) {
