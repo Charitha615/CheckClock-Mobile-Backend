@@ -60,6 +60,7 @@ app.post('/send-email', authenticateToken, async (req, res) => {
   const { to_email, contact_person, alarm_time, elapsed_time, support_contact } = req.body;
 
   if (!to_email || !contact_person || !alarm_time || !elapsed_time || !support_contact) {
+    console.error('Error sending email:', error);
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
